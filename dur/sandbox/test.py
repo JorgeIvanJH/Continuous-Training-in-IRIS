@@ -1,41 +1,32 @@
-import pyodbc
+import os
 
-# Configuration
-server = 'localhost'
-port = '1972' # Standard InterSystems superserver port
-database = 'USER'
-username = 'SuperUser'
-password = 'demo'
+import pandas as pd
+from sklearn import datasets
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
+import mlflow
 
-# Connection string using the specific InterSystems ODBC driver
-# Note: Ensure the driver name exactly matches what is installed on your client
-# Updated with the correct driver name from your system
-connection_string = (
-    f"DRIVER={{InterSystems IRIS ODBC35}};"
-    f"SERVER={server};"
-    f"PORT={port};"
-    f"DATABASE={database};"
-    f"UID={username};"
-    f"PWD={password}"
+import dotenv
+dotenv.load_dotenv()
+
+mlflow.set_tracking_uri(os.environ["MLFLOW_TRACKING_URI"]) # Can also be set using environment variable MLFLOW_TRACKING_URI
+mlflow.set_experiment("my-first-experiment") # Can also be set using environment variable MLFLOW_EXPERIMENT_NAME
+
+X, y = datasets.load_iris(return_X_y=True)
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
 )
 
-query = "SELECT patientid, appointmentid, gender, scheduledday, appointmentday, age, neighbourhood, scholarship, hipertension, diabetes, alcoholism, handcap, sms_received, showed_up, date_diff FROM MockPackage.NoShowsAppointments"
+params = {
+    "solver": "lbfgs",
+    "max_iter": 1000,
+    "random_state": 8888,
+}
 
-try:
-    # Establish connection
-    cnxn = pyodbc.connect(connection_string)
-    cursor = cnxn.cursor()
-    
-    # Execute query
-    cursor.execute(query)
-    
-    # Fetch and display results
-    for row in cursor.fetchall():
-        print(row)
-        
-except Exception as e:
-    print(f"Error: {e}")
-finally:
-    if 'cnxn' in locals():
-        cnxn.close()
+mlflow.sklearn.autolog() # WITH JUST THIS LINE, MLFLOW WILL SAVE TRAINED MODEL, PARAMETERS, AND METRICS AUTOMATICALLY!
+
+lr = LogisticRegression(**params)
+lr.fit(X_train, y_train)
