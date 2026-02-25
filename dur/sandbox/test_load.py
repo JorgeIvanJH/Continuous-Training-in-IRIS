@@ -28,3 +28,11 @@ rmse_new = np.sqrt(mean_squared_error(y_test, y_pred))
 
 print("Recomputed RMSE:", rmse_new)
 
+
+# # Or when downloading the model manually from the MLflow UI, you can load it like this:
+# import joblib
+# model_path = "model.pkl"
+# model = joblib.load(model_path)
+# y_pred = model.predict(X_test)
+# rmse_new = np.sqrt(mean_squared_error(y_test, y_pred))
+# print("Recomputed RMSE from local model:", rmse_new)

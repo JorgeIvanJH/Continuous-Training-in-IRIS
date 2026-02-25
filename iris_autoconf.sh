@@ -13,13 +13,13 @@ repo -r -n registry -url https://pm.community.intersystems.com/ -user "" -pass "
 install csvgenpy
 quit
 
-/* Import and Compile the MockPackage */
+/* Import and Compile the MLpipeline package*/
 /* The "ck" flags will Compile and Keep the source */
-Do $system.OBJ.Import("/usr/irissys/mgr/MockPackage", "ck")
+Do $system.OBJ.Import("/usr/irissys/mgr/MLpipeline", "ck")
 
 /* Upload csv data ONCE to Table Automatically using csvgenpy */
-SET exists = ##class(%SYSTEM.SQL.Schema).TableExists("MockPackage.NoShowsAppointments")
-IF 'exists {   do ##class(shvarov.csvgenpy.csv).Generate("/dur/data/healthcare_noshows_appointments.csv","NoShowsAppointments","MockPackage")   }
+SET exists = ##class(%SYSTEM.SQL.Schema).TableExists("MLpipeline.PointSamples")
+IF 'exists {   do ##class(shvarov.csvgenpy.csv).Generate("/dur/data/data_sample.csv","PointSamples","MLpipeline")   }
 
 /* Enable Analytics */
 do EnableDeepSee^%SYS.cspServer("/csp/user/") # Enable for USER namespace
