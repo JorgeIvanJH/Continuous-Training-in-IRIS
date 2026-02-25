@@ -5,7 +5,10 @@ This repo contains a solid base for Machine Learning Pipeline Automation as part
 
 ![alt text](images/MLOps_IRIS_level1.png)
 
-Everything should work by only running
+In a nutshell this repo proposes MLflow for the Data Science experimentation phase (upper section), running locally (server can be later deployed for team working) using MLflow, and the rest of CT's automated pipeline using native IRIS tools. Below we explain the most relevant bits of how these components work and how to test them.
+
+
+The only configuration needed was designed by only running
 
 ```
 docker-compose up --build -d
@@ -28,31 +31,59 @@ mlflow server --port 5000
 then you can Open http://localhost:5000 in your browser to view the UI.
 
 # Experimentation framework (MLflow Tracking)
-MLflow Tracking is the component of MLflow for data scientists who train traditional machine learning models. It keeps track of model performance metrics, saves weights in a standard manner, logs hyperparameters, and much more. All this information is saved locally (in this repo), and can be easily consulted just by going to http://localhost:5000 in any web explored.
 
-Codewise only a couple of additional lines of code are added to link training progress to be stored in the platform
+MLflow Tracking is the component of MLflow for data scientists who train traditional machine learning models. It keeps track of model performance metrics, saves weights in a standard manner, logs hyperparameters, and much more. All this information is saved locally (in this repo), and dashboards, metrics and all info related to the model development of interest for data scientists can be easily consulted just by going to http://localhost:5000 in any web explorer.
 
-only 2 lines added
+Codewise only a couple of additional lines of code are added to the python script or jupyter notebook to link training progress to be stored in this platform.
+
+Example: 
+
+In this example we only require 2 additional lines (besides import mlflow of course) to keep track of the experimentations for my LightGbm model over one popular sklearn's public dataset:
 
 ```python
-mlflow.set_experiment("my-first-experiment") # Can also be set using environment variable MLFLOW_EXPERIMENT_NAME
+import os
+import dotenv
+import pandas as pd
+from sklearn import datasets
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import r2_score
 
-X, y = datasets.load_iris(return_X_y=True)
+import lightgbm as lgb
+import mlflow
+import mlflow.lightgbm
 
+dotenv.load_dotenv()
+
+mlflow.set_tracking_uri(os.environ["MLFLOW_TRACKING_URI"])
+mlflow.set_experiment("MyLightGMB-experimentation") # 1: name of the experiment to identify in the UI
+
+X, y = datasets.fetch_california_housing(return_X_y=True)
 X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=42
 )
-
 params = {
-    "solver": "lbfgs",
-    "max_iter": 1000,
-    "random_state": 8888,
+    "n_estimators": 20,
+    "learning_rate": 0.1,
+    "max_depth": 50,
+    "random_state": 42,
 }
+mlflow.lightgbm.autolog() # 2: Enable LightGBM autologging (would change for other libraries)
 
-mlflow.sklearn.autolog() # WITH JUST THIS LINE, MLFLOW WILL SAVE TRAINED MODEL, PARAMETERS, AND METRICS AUTOMATICALLY!
+model = lgb.LGBMRegressor(**params)
+model.fit(X_train, y_train, eval_set=[(X_test, y_test)], eval_metric="rmse")
 
-lr = LogisticRegression(**params)
-lr.fit(X_train, y_train)
 ```
 
+And just like that we have full traceability of all the experiments we carry on. See below a short execise varying the number of extimators and max depth to reduce the rmse
+
+![alt text](<images/MLflow experiments.png>)
+
+Clicking each experiment, we can see more details, such as the training curve
+
+![alt text](images/MLflow_experiment_learn_curve.png)
+
 Quickstart for Data Scientists: https://mlflow.org/docs/latest/ml/getting-started/quickstart/
+
+Guide for automatic hyperparameter optimization using optuna, and mlflow for tracking: https://mlflow.org/docs/latest/ml/getting-started/hyperparameter-tuning/
+
+Run python dur\sandbox\test_train.py to train and see performance tracking, and dur\sandbox\test_load.py to know how to load the resulting model based on the Run ID from the experiment desired.
