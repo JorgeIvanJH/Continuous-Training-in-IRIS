@@ -1,4 +1,4 @@
-Class MLpipeline.DataManager Extends %Persistent
+Class MLpipeline.DataManager Extends %RegisteredObject
 {
 
 ClassMethod UploadCSVtoIRIS(csvpath As %String, namespace As %String, package As %String, tablename As %String) As %Status  [ Language = python ]
