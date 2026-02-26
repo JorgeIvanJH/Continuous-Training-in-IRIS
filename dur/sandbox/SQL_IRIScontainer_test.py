@@ -5,7 +5,7 @@ server = 'localhost'
 port = '1972' # Standard InterSystems superserver port
 database = 'USER'
 username = 'SuperUser'
-password = 'demo'
+password = 'SYS'
 
 
 # Connection string using the specific InterSystems ODBC driver
