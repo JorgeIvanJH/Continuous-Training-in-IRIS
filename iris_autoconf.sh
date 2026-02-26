@@ -17,9 +17,9 @@ quit
 /* The "ck" flags will Compile and Keep the source */
 Do $system.OBJ.Import("/usr/irissys/mgr/MLpipeline", "ck")
 
-/* Upload csv data ONCE to Table Automatically using csvgenpy */
-SET exists = ##class(%SYSTEM.SQL.Schema).TableExists("MLpipeline.PointSamples")
-IF 'exists {   do ##class(shvarov.csvgenpy.csv).Generate("/dur/data/data_sample.csv","PointSamples","MLpipeline")   }
+/* Upload csv data ONCE to Table Automatically */
+# SET exists = ##class(%SYSTEM.SQL.Schema).TableExists("MLpipeline.PointSamples") # TODO: change to upload keeping data types
+# IF 'exists {   do ##class(MLpipeline.DataManager).UploadCSVtoIRIS("/dur/data/point_samples.csv","USER", "MLpipeline","PointSamples")   }
 
 /* Enable Analytics */
 do EnableDeepSee^%SYS.cspServer("/csp/user/") # Enable for USER namespace

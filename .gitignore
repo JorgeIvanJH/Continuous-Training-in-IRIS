@@ -3,7 +3,7 @@ dur/sandbox/mlflow
 *.csv
 *.txt
 !dur/models/LightGBM_1620_22122025.txt
-!dur/data/data_sample.csv
+!dur/data/point_samples.csv
 __pycache__/
 *.pyc
 *.pyo

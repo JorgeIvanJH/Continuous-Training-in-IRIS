@@ -1,4 +1,4 @@
-Class MockPackage.MockModelManager Extends %Persistent
+Class MLpipeline.MockModelManager Extends %Persistent
 {
 
 ClassMethod SimplePythonMethod() As %String [ Language = python ]
@@ -23,7 +23,7 @@ ClassMethod TrainNoShowsModel(csvPath As %String, modelSavePath As %String) As %
     """
     Trains a LightGBM model on the noshows dataset and saves the model to the specified path.
     e.g:
-        do ##class(MockPackage.MockModelManager).TrainNoShowsModel("/dur/data/healthcare_noshows_appointments.csv", "/dur/models")
+        do ##class(MLpipeline.MockModelManager).TrainNoShowsModel("/dur/data/healthcare_noshows_appointments.csv", "/dur/models")
     """
     import os
     import pandas as pd
@@ -81,21 +81,6 @@ ClassMethod TrainNoShowsModel(csvPath As %String, modelSavePath As %String) As %
     df = pd.read_csv(csvPath)
     X, y = utils.noshows_data_preprocessing(df)
     training_lightgbm(X, y, njobs_model=4, modelsave_path=modelSavePath)
-}
-
-Storage Default
-{
-<Data name="MockModelDefaultData">
-<Value name="1">
-<Value>%%CLASSNAME</Value>
-</Value>
-</Data>
-<DataLocation>^MockPackage.MockModelD</DataLocation>
-<DefaultData>MockModelDefaultData</DefaultData>
-<IdLocation>^MockPackage.MockModelD</IdLocation>
-<IndexLocation>^MockPackage.MockModelI</IndexLocation>
-<StreamLocation>^MockPackage.MockModelS</StreamLocation>
-<Type>%Storage.Persistent</Type>
 }
 
 }

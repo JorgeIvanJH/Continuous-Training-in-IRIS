@@ -20,7 +20,7 @@ connection_string = (
     f"PWD={password}"
 )
 
-query = "SELECT patientid, appointmentid, gender, scheduledday, appointmentday, age, neighbourhood, scholarship, hipertension, diabetes, alcoholism, handcap, sms_received, showed_up, date_diff FROM MockPackage.NoShowsAppointments"
+query = "SELECT * FROM MLpipeline.NoShowsAppointments"
 
 try:
     # Establish connection

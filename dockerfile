@@ -36,7 +36,7 @@ ENV PYTHONPATH=/usr/irissys/mgr/python:${PYTHONPATH}
 
 
 # Copy ObjectScript classes into the image
-COPY MockPackage /usr/irissys/mgr/MockPackage
+COPY MLpipeline /usr/irissys/mgr/MLpipeline
 # Copy and set permissions for the autoconf script while still root
 COPY iris_autoconf.sh /usr/irissys/iris_autoconf.sh
 RUN sed -i 's/\r$//' /usr/irissys/iris_autoconf.sh && chmod +x /usr/irissys/iris_autoconf.sh

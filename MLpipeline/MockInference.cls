@@ -1,4 +1,4 @@
-Class MockPackage.MockInference Extends %Persistent
+Class MLpipeline.MockInference Extends %Persistent
 {
 
 Parameter MODELPATH = "/dur/models/LightGBM_1620_22122025.txt";
@@ -10,7 +10,7 @@ ClassMethod ConsistencyCheck(lowerAge As %Integer = 0) [ Language = python ]
     """
     Compares outputs from the three different query methods to ensure they return the same data.
     e.g:
-        do ##class(MockPackage.MockInference).ConsistencyCheck(30)
+        do ##class(MLpipeline.MockInference).ConsistencyCheck(30)
     """
     import pandas as pd
     from python_utils import querymethods as querymethods
@@ -38,8 +38,8 @@ ClassMethod DynamicSQL(lowerAge As %Integer = 0) As %String
 {
     ; Execute a dynamic SQL query to retrieve rows from NoShowsAppointments table where age >= lowerAge
     ; e.g:
-    ;    set results = ##class(MockPackage.MockInference).DynamicSQL(30)
-    set statement = "SELECT patientid, appointmentid, gender, scheduledday, appointmentday, age, neighbourhood, scholarship, hipertension, diabetes, alcoholism, handcap, sms_received, showed_up, date_diff FROM MockPackage.NoShowsAppointments WHERE age >= ?"
+    ;    set results = ##class(MLpipeline.MockInference).DynamicSQL(30)
+    set statement = "SELECT patientid, appointmentid, gender, scheduledday, appointmentday, age, neighbourhood, scholarship, hipertension, diabetes, alcoholism, handcap, sms_received, showed_up, date_diff FROM MLpipeline.NoShowsAppointments WHERE age >= ?"
     set objSql = ##class(%SQL.Statement).%New()
     set status = objSql.%Prepare(statement)
     if $$$ISERR(status) {
@@ -79,14 +79,14 @@ ClassMethod RunInferenceWDynamicSQL(lowerAge As %Integer = 0) [ Language = pytho
     """
     Runs inference using dynamic SQL query to fetch data from IRIS database.
     e.g:
-        do ##class(MockPackage.MockInference).RunInferenceWDynamicSQL(30)
+        do ##class(MLpipeline.MockInference).RunInferenceWDynamicSQL(30)
     """
     import iris
     import pandas as pd
     import json
     from python_utils import utils as utils
     from python_utils import querymethods as querymethods
-    modelPath = iris.cls("MockPackage.MockInference")._GetParameter("MODELPATH")
+    modelPath = iris.cls("MLpipeline.MockInference")._GetParameter("MODELPATH")
     time_decorator = utils.measure_time_decorator
     query_method = querymethods.dynamic_sql_query
     decorated_query = time_decorator(query_method)
@@ -106,13 +106,13 @@ ClassMethod RunInferenceWIRISSQL(lowerAge As %Integer = 0) [ Language = python ]
     """
     Runs inference using IRIS SQL from Python to fetch data from IRIS database.
     e.g:
-        do ##class(MockPackage.MockInference).RunInferenceWIRISSQL(30)
+        do ##class(MLpipeline.MockInference).RunInferenceWIRISSQL(30)
     """
     import iris
     import pandas as pd
     from python_utils import utils as utils
     from python_utils import querymethods as querymethods
-    modelPath = iris.cls("MockPackage.MockInference")._GetParameter("MODELPATH")
+    modelPath = iris.cls("MLpipeline.MockInference")._GetParameter("MODELPATH")
     time_decorator = utils.measure_time_decorator
     query_method = querymethods.iris_sql_query
     decorated_query = time_decorator(query_method)
@@ -132,13 +132,13 @@ ClassMethod RunInferenceWGLobals(lowerAge As %Integer = 0) [ Language = python ]
     """
     Runs inference using direct global access to fetch data from IRIS database.
     e.g:
-        do ##class(MockPackage.MockInference).RunInferenceWGLobals(30)
+        do ##class(MLpipeline.MockInference).RunInferenceWGLobals(30)
     """
     import iris
     import pandas as pd
     from python_utils import utils as utils
     from python_utils import querymethods as querymethods
-    modelPath = iris.cls("MockPackage.MockInference")._GetParameter("MODELPATH")
+    modelPath = iris.cls("MLpipeline.MockInference")._GetParameter("MODELPATH")
     time_decorator = utils.measure_time_decorator
     query_method = querymethods.iris_global_query
     decorated_query = time_decorator(query_method)
@@ -155,10 +155,10 @@ ClassMethod RunAllInferences(lowerAge As %Integer = 0, numTimesAv As %Integer = 
 {
     ; Run all three inference methods and display their times.
     ; e.g:
-    ;    do ##class(MockPackage.MockInference).RunAllInferences(0,1)
+    ;    do ##class(MLpipeline.MockInference).RunAllInferences(0,1)
 
     Set methods = $ListBuild("RunInferenceWDynamicSQL", "RunInferenceWIRISSQL", "RunInferenceWGLobals")
-    Set className = "MockPackage.MockInference"
+    Set className = "MLpipeline.MockInference"
     Set ptr = 0
     While $ListNext(methods, ptr, methodName) {
         write "Running inference with method: ", methodName, ":",!
@@ -175,21 +175,6 @@ ClassMethod RunAllInferences(lowerAge As %Integer = 0, numTimesAv As %Integer = 
     }
     
     return 1
-}
-
-Storage Default
-{
-<Data name="MockInferenceDefaultData">
-<Value name="1">
-<Value>%%CLASSNAME</Value>
-</Value>
-</Data>
-<DataLocation>^MockPackage.MockInferenceD</DataLocation>
-<DefaultData>MockInferenceDefaultData</DefaultData>
-<IdLocation>^MockPackage.MockInferenceD</IdLocation>
-<IndexLocation>^MockPackage.MockInferenceI</IndexLocation>
-<StreamLocation>^MockPackage.MockInferenceS</StreamLocation>
-<Type>%Storage.Persistent</Type>
 }
 
 }

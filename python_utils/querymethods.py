@@ -3,7 +3,7 @@ import pandas as pd
 import json
 
 def dynamic_sql_query(lower_age: int) -> pd.DataFrame:
-    rows = iris.cls("MockPackage.MockInference").DynamicSQL(lower_age)
+    rows = iris.cls("MLpipeline.MockInference").DynamicSQL(lower_age)
     py_rows = []
     for i in range(0, rows._Size() + 1):
         row = rows._Get(i)
@@ -24,7 +24,7 @@ def iris_sql_query(lower_age: int) -> pd.DataFrame:
         'hipertension', 'diabetes', 'alcoholism', 'handcap', 
         'sms_received', 'showed_up', 'date_diff'
     ]
-    query = f"SELECT {', '.join(columns)} FROM MockPackage.NoShowsAppointments WHERE age >= {lower_age}"
+    query = f"SELECT {', '.join(columns)} FROM MLpipeline.NoShowsAppointments WHERE age >= {lower_age}"
     statement = iris.sql.prepare(query)
     stmt = statement.execute()
     df = pd.DataFrame(list(stmt), columns=columns)
