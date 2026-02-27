@@ -24,9 +24,25 @@ IF 'exists { do ##class(MLpipeline.DataManager).UploadCSVtoIRIS("/dur/data/point
 Write "Enabling analytics...",!
 do EnableDeepSee^%SYS.cspServer("/csp/user/")
 
+Write "Changing to SYS namespace for additional system permission...",!
+Set $namespace="%SYS"
+
 Write "Disabling password expiration...",!
-ZN "%SYS"
 Do ##class(Security.Users).UnExpireUserPasswords("*")
+
+Write "Enabling structured logging...",!
+do ^LOGDMN
+4
+INFO
+irislogd -f /dur/log/MLpipelineLogs.log
+JSON
+1
+-Audit.*,-Utility.*,-Log.*,-Generic.*,-System.*,+Utility.*
+7
+q
+
+
+
 
 Write "IRIS CONFIGURATION COMPLETED.",!
 halt

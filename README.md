@@ -30,7 +30,7 @@ mlflow server --port 5000
 
 then you can Open http://localhost:5000 in your browser to view the UI.
 
-# Experimentation framework (MLflow Tracking)
+## Experimentation framework (MLflow Tracking)
 
 MLflow Tracking is the component of MLflow for data scientists who train traditional machine learning models. It keeps track of model performance metrics, saves weights in a standard manner, logs hyperparameters, and much more. All this information is saved locally (in this repo), and dashboards, metrics and all info related to the model development of interest for data scientists can be easily consulted just by going to http://localhost:5000 in any web explorer.
 
@@ -89,3 +89,19 @@ Guide for automatic hyperparameter optimization using optuna, and mlflow for tra
 Run python dur\sandbox\test_train.py to train and see performance tracking, and dur\sandbox\test_load.py to know how to load the resulting model based on the Run ID from the experiment desired (TODO: see why it takes so long).
 
 
+## Logging
+This repo uses Structured Logging to log every relevant aspect of the operational health of the CT pipeline. The configuration set on the iris_autoconf.sh file to keep for the "INFO" level, only "Utility.Event" events creates with the form
+
+do ##class(%SYS.System).WriteToConsoleLog(message, prefix, severity)
+
+e.g:
+    do ##class(%SYS.System).WriteToConsoleLog("This is my INFO CT Log", 0, 0)
+    do ##class(%SYS.System).WriteToConsoleLog("This is my WARNING CT Log", 0, 1)
+    do ##class(%SYS.System).WriteToConsoleLog("This is my SEVERE CT Log", 0, 2)
+
+This logging system is used throughout the whole pipeline for auditing purposes.
+
+
+
+
+docker exec -it iris-experimentation iris terminal iris

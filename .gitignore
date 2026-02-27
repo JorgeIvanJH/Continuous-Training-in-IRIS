@@ -7,3 +7,4 @@ dur/sandbox/mlflow
 __pycache__/
 *.pyc
 *.pyo
+*.log

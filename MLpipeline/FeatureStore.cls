@@ -1,9 +1,19 @@
-Class MLpipeline.FeatureStore Extends %Persistent
+Class MLpipeline.FeatureStore Extends %RegisteredObject
 {
 
-// DEFINED PROPERTIES FOR THE CT RUN (instantaneous)
-Property WindowDays As %Integer; // Is set when instanting this FeatureStore for a CT run
-// THESE HAS TO BE STORED IN THE CT RUN TABLE
+// Example of a constant parameter that never changes
+
+Parameter ConstVar = "CONSTANT VAR FOR THE PROJECT";
+
+// Purpose of the instantiation of FeatureStore
+
+Property Action As %String;
+
+Method %OnNew() As %Status [ Private ]
+{
+    do ##class(%SYS.System).WriteToConsoleLog("Created instance of MLpipeline.FeatureStore with ConstVar: "_..#ConstVar, 0, 0)
+    Quit $$$OK
+}
 
 /// Description
 Method DataExtraction(schema As %String, tablename As %String, columns As %String = "*", filters As %String = "") As %Status [ Language = python ]
@@ -11,7 +21,8 @@ Method DataExtraction(schema As %String, tablename As %String, columns As %Strin
     """
     Extracts data from IRIS database using SQL query constructed from the input parameters.
     e.g:
-        do ##class(MLpipeline.FeatureStore).DataExtraction("MLpipeline", "PointSamples", "*", "datetime > '2026-02-26 17:50:00'")
+        set FS = ##class(MLpipeline.FeatureStore).%New()
+        do FS.DataExtraction("MLpipeline", "PointSamples", "*", "datetime > '2026-02-26 17:50:00'")
     """
     import iris
     import pandas as pd
@@ -26,7 +37,7 @@ Method DataExtraction(schema As %String, tablename As %String, columns As %Strin
             return False
         print(f"Extracted {len(df)} rows.")
         print(f"Columns: {list(df.columns)}")
-        # TODO: Log extraction details to a monitoring system
+        iris._SYS.System.WriteToConsoleLog(f"Executed query: {query} - Extracted {len(df)} rows.", 0, 0)
         return True
 
     except Exception as e:
@@ -34,36 +45,6 @@ Method DataExtraction(schema As %String, tablename As %String, columns As %Strin
         return False
 }
 
-/// Description
-Method LogMetadata() As %Status
-{
-    Set run.WindowDays = ..WindowDays
-
-
-
-    Set sc = $$$OK
-    // do something
-    Return sc
-}
 // TODO: Implement processing pipelines, e.g. data cleaning, feature engineering, etc.
 
-
-// TODO: Have Table: MLpipeline.CTRun Set run = ##class(MLpipeline.CTRun).%New()
-    // Set run.WindowDays = ..WindowDays
-    // Set run.Query = query
-    // Set run.RowCount = rowcount
-    // Do run.%Save()
-
-
-    //     Field	Why
-    // RunId	Unique identifier
-    // CreatedAt	When it ran
-    // FeatureVersion	Which feature logic version
-    // WindowStart	Extraction window start
-    // WindowEnd	Extraction window end
-    // QueryHash	Reproducibility
-    // RowCount	Sanity check
-    // RandomSeed	Dataset split reproducibility
-    // ModelVersion	Resulting model
-    // Status	Success / Failed
 }
