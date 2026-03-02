@@ -5,46 +5,41 @@ Class MLpipeline.FeatureStore Extends %RegisteredObject
 
 Parameter ConstVar = "CONSTANT VAR FOR THE PROJECT";
 
-// Purpose of the instantiation of FeatureStore
-
-Property Action As %String;
-
 Method %OnNew() As %Status [ Private ]
 {
     do ##class(%SYS.System).WriteToConsoleLog("Created instance of MLpipeline.FeatureStore with ConstVar: "_..#ConstVar, 0, 0)
     Quit $$$OK
 }
 
-/// Description
-Method DataExtraction(schema As %String, tablename As %String, columns As %String = "*", filters As %String = "") As %Status [ Language = python ]
+/// Extracts data from IRIS database using SQL query constructed from the input parameters.
+/// e.g:
+///    set FS = ##class(MLpipeline.FeatureStore).%New()
+///    set rs = FS.DataExtraction("MLpipeline", "PointSamples", "*", "datetime > '2026-02-26 17:50:00'")
+Method DataExtraction(schema As %String, tablename As %String, columns As %String = "*", filters As %String = "") As %SQL.StatementResult
 {
-    """
-    Extracts data from IRIS database using SQL query constructed from the input parameters.
-    e.g:
-        set FS = ##class(MLpipeline.FeatureStore).%New()
-        do FS.DataExtraction("MLpipeline", "PointSamples", "*", "datetime > '2026-02-26 17:50:00'")
-    """
-    import iris
-    import pandas as pd
+    set query = "SELECT " _ columns _ " FROM " _ schema _ "." _ tablename
+    if (filters '= "") set query = query _ " WHERE " _ filters
+
+    set tStatement = ##class(%SQL.Statement).%New()
+    set tStatus = tStatement.%Prepare(query)
     
-    try:
-        where_clause = f" WHERE {filters}" if filters else ""
-        query = f"SELECT {columns} FROM {schema}.{tablename} {where_clause}"
-        rs = iris.sql.exec(query)
-        df = rs.dataframe()
-        if df.empty:
-            print("Warning: No data found for the given filters.")
-            return False
-        print(f"Extracted {len(df)} rows.")
-        print(f"Columns: {list(df.columns)}")
-        iris._SYS.System.WriteToConsoleLog(f"Executed query: {query} - Extracted {len(df)} rows.", 0, 0)
-        return True
+    // Handle Preparation Errors (e.g., syntax errors)
+    if $$$ISERR(tStatus) {
+        do ##class(%SYS.System).WriteToConsoleLog("SQL Prepare Failed: " _ query, 0, 2)
+        quit ""
+    }
 
-    except Exception as e:
-        print(f"Extraction Error: {str(e)}")
-        return False
+    set rs = tStatement.%Execute()
+
+    // Handle Execution Errors
+    if (rs.%SQLCODE < 0) {
+        do ##class(%SYS.System).WriteToConsoleLog("SQL Execution Error: " _ rs.%Message, 0, 2)
+        quit rs // Return the result set anyway; Python will see the error code
+    }
+    
+    do ##class(%SYS.System).WriteToConsoleLog("Executed query: " _ query, 0, 0)
+    
+    return rs
 }
-
-// TODO: Implement processing pipelines, e.g. data cleaning, feature engineering, etc.
 
 }
