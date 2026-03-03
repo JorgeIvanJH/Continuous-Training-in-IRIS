@@ -9,17 +9,24 @@ Property SEED As %Integer;
 
 Property SCALER As %SYS.Python;
 
-Method %OnNew(seed As %Integer = 42) As %Status [ Private ]
+// Test size for train-test split (e.g., 0.2 for 20% test data)
+
+Property TESTSIZE As %Numeric(SCALE = 2);
+
+Method %OnNew(seed As %Integer = 42, testSize As %Numeric(SCALE=2) = 0.2) As %Status [ Private ]
 {
     set ..SEED = seed
-    do ##class(%SYS.System).WriteToConsoleLog("Created instance of MLpipeline.AutomatedPipeline with SEED=" _ seed, 0, 0)
+    set ..TESTSIZE = testSize
+    do ##class(%SYS.System).WriteToConsoleLog("Created instance of MLpipeline.AutomatedPipeline with SEED=" _ seed _ " and TESTSIZE=" _ testSize, 0, 0)
     Quit $$$OK
 }
 
-/// Leverages the FeatureStore to extract data and transform it to pandas DataFrame.
-/// e.g:
-///     set AP = ##class(MLpipeline.AutomatedPipeline).%New()
-///     set df = AP.DataExtraction("2026-02-26 17:50:00")
+/*
+Leverages the FeatureStore to extract data and transform it to pandas DataFrame.
+e.g:
+    set AP = ##class(MLpipeline.AutomatedPipeline).%New()
+    set df = AP.DataExtraction("2026-02-26 17:50:00")
+*/
 Method DataExtraction(datetime As %String) As %SYS.Python [ Language = python ]
 {
     import iris
@@ -42,11 +49,13 @@ Method DataExtraction(datetime As %String) As %SYS.Python [ Language = python ]
         return None
 }
 
-/// Validates the extracted DataFrame for missing values and logs the results.
-/// e.g:
-///     set AP = ##class(MLpipeline.AutomatedPipeline).%New()
-///     set df = AP.DataExtraction("2026-02-26 17:50:00")
-///     set validDf = AP.DataValidation(df)
+/*
+Validates the extracted DataFrame for missing values and logs the results.
+e.g:
+    set AP = ##class(MLpipeline.AutomatedPipeline).%New()
+    set df = AP.DataExtraction("2026-02-26 17:50:00")
+    set validDf = AP.DataValidation(df)
+*/
 Method DataValidation(df As %SYS.Python) As %SYS.Python [ Language = python ]
 {
     import iris
@@ -76,11 +85,11 @@ Method DataValidation(df As %SYS.Python) As %SYS.Python [ Language = python ]
 
 /* 
 Prepares the validated DataFrame for model training
- e.g:
-     set AP = ##class(MLpipeline.AutomatedPipeline).%New()
-     set df = AP.DataExtraction("2026-02-26 17:50:00")
-     set validDf = AP.DataValidation(df)
-     set prepDf = AP.DataPreparation(validDf)
+e.g:
+    set AP = ##class(MLpipeline.AutomatedPipeline).%New()
+    set df = AP.DataExtraction("2026-02-26 17:50:00")
+    set validDf = AP.DataValidation(df)
+    set prepDf = AP.DataPreparation(validDf)
 */
 Method DataPreparation(df As %SYS.Python) As %SYS.Python [ Language = python ]
 {
@@ -94,27 +103,27 @@ Method DataPreparation(df As %SYS.Python) As %SYS.Python [ Language = python ]
             iris._SYS.System.WriteToConsoleLog("Received None DataFrame for preparation.", 0, 2)
             raise ValueError("Input DataFrame is None")
         
-        df_train, df_test = train_test_split(df, test_size=0.2, random_state=self.SEED)
-        print(self.SCALER == "", type(self.SCALER)) # HOW TO VALIDATE
-        print("SCALER: ", self.SCALER, "Type: ", type(self.SCALER))
-        X_train = scaler.fit_transform(df_train[["x"]])
+        iris._SYS.System.WriteToConsoleLog("Splitting DataFrame into training and test sets.", 0, 0)
+        df_train, df_test = train_test_split(df, test_size=self.TESTSIZE, random_state=self.SEED)
+        X_train = df_train[["x"]]
         y_train = df_train["y"]
-        X_test = scaler.transform(df_test[["x"]])
+        X_test = df_test[["x"]]
         y_test = df_test["y"]
 
-
-        # Normalization
-        numeric_cols = df.select_dtypes(include=['float64', 'int64']).columns
-        scaler = StandardScaler()
-        df[numeric_cols] = scaler.fit_transform(df[numeric_cols])
-        iris._SYS.System.WriteToConsoleLog(f"StandardScaler Normalized columns: {list(numeric_cols)}", 0, 0)
-
-        # Additional preparation steps can be added here
         
+        if not isinstance(self.SCALER, StandardScaler):
+            iris._SYS.System.WriteToConsoleLog("No existing StandardScaler found. Initializing new scaler and fitting to training data.", 0, 0)
+            self.SCALER = StandardScaler()
+            self.SCALER.fit(X_train)
+        else:
+            iris._SYS.System.WriteToConsoleLog("Using existing StandardScaler for normalization.", 0, 0)
+        
+        iris._SYS.System.WriteToConsoleLog("Applying StandardScaler transformation to training and test data.", 0, 0)
+        X_train = self.SCALER.transform(X_train)
+        X_test = self.SCALER.transform(X_test)
 
-        # End of preparation
-        iris._SYS.System.WriteToConsoleLog("DataFrame preparation completed successfully.", 0, 0)
-        return df
+        iris._SYS.System.WriteToConsoleLog("Data preparation completed successfully.", 0, 0)
+        return (X_train, y_train, X_test, y_test)
     except Exception as e:
         print("Error during Data Preparation:", e)
         iris._SYS.System.WriteToConsoleLog(f"Preparation Error: {str(e)}", 0, 2)
