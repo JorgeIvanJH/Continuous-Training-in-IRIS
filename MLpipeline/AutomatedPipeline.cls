@@ -13,11 +13,29 @@ Property SCALER As %SYS.Python;
 
 Property TESTSIZE As %Numeric(SCALE = 2);
 
-Method %OnNew(seed As %Integer = 42, testSize As %Numeric(SCALE=2) = 0.2) As %Status [ Private ]
+// Placeholder for the trained model (e.g., LinearRegression from sklearn)
+
+Property MODEL As %SYS.Python;
+
+// Model parameters stored as a dynamic object for flexibility (e.g., {"fit_intercept": True})
+
+Property MODELPARAMS As %DynamicObject;
+
+/*
+Set default values of parameters when a new instance of AutomatedPipeline is created.
+e.g:
+    set AP = ##class(MLpipeline.AutomatedPipeline).%New()
+*/
+Method %OnNew(seed As %Integer = 42, testSize As %Numeric(SCALE=2) = 0.2, modelParams As %DynamicObject = "") As %Status [ Private ]
 {
     set ..SEED = seed
     set ..TESTSIZE = testSize
-    do ##class(%SYS.System).WriteToConsoleLog("Created instance of MLpipeline.AutomatedPipeline with SEED=" _ seed _ " and TESTSIZE=" _ testSize, 0, 0)
+    if modelParams = "" {
+        set ..MODELPARAMS = {"fit_intercept": true} // Default parameters for LinearRegression
+    } else {
+        set ..MODELPARAMS = modelParams
+    }
+    do ##class(%SYS.System).WriteToConsoleLog("Created instance of MLpipeline.AutomatedPipeline with SEED=" _ seed _ " and TESTSIZE=" _ testSize _ " and MODELPARAMS=" _ ..MODELPARAMS, 0, 0)
     Quit $$$OK
 }
 
@@ -89,7 +107,7 @@ e.g:
     set AP = ##class(MLpipeline.AutomatedPipeline).%New()
     set df = AP.DataExtraction("2026-02-26 17:50:00")
     set validDf = AP.DataValidation(df)
-    set prepDf = AP.DataPreparation(validDf)
+    set (Xtrain, Ytrain, Xtest, Ytest) = AP.DataPreparation(validDf)
 */
 Method DataPreparation(df As %SYS.Python) As %SYS.Python [ Language = python ]
 {
@@ -104,60 +122,69 @@ Method DataPreparation(df As %SYS.Python) As %SYS.Python [ Language = python ]
             raise ValueError("Input DataFrame is None")
         
         iris._SYS.System.WriteToConsoleLog("Splitting DataFrame into training and test sets.", 0, 0)
-        df_train, df_test = train_test_split(df, test_size=self.TESTSIZE, random_state=self.SEED)
-        X_train = df_train[["x"]]
-        y_train = df_train["y"]
-        X_test = df_test[["x"]]
-        y_test = df_test["y"]
-
+        
+        Xtrain, Xtest, Ytrain, Ytest = train_test_split(df[["x"]], df["y"], test_size=self.TESTSIZE, random_state=self.SEED)
         
         if not isinstance(self.SCALER, StandardScaler):
             iris._SYS.System.WriteToConsoleLog("No existing StandardScaler found. Initializing new scaler and fitting to training data.", 0, 0)
             self.SCALER = StandardScaler()
-            self.SCALER.fit(X_train)
+            self.SCALER.fit(Xtrain)
         else:
             iris._SYS.System.WriteToConsoleLog("Using existing StandardScaler for normalization.", 0, 0)
         
         iris._SYS.System.WriteToConsoleLog("Applying StandardScaler transformation to training and test data.", 0, 0)
-        X_train = self.SCALER.transform(X_train)
-        X_test = self.SCALER.transform(X_test)
+        Xtrain = self.SCALER.transform(Xtrain)
+        Xtest = self.SCALER.transform(Xtest)
 
         iris._SYS.System.WriteToConsoleLog("Data preparation completed successfully.", 0, 0)
-        return (X_train, y_train, X_test, y_test)
+        return (Xtrain, Ytrain, Xtest, Ytest)
     except Exception as e:
         print("Error during Data Preparation:", e)
         iris._SYS.System.WriteToConsoleLog(f"Preparation Error: {str(e)}", 0, 2)
         return None
 }
 
-Method ModelTraining(df As %SYS.Python) As %SYS.Python [ Language = python ]
+/*
+Trains a machine learning model (e.g., LinearRegression) using the prepared data and specified parameters.
+e.g:
+    set AP = ##class(MLpipeline.AutomatedPipeline).%New()
+    set df = AP.DataExtraction("2026-02-26 17:50:00")
+    set validDf = AP.DataValidation(df)
+    set result  = AP.DataPreparation(validDf)
+    Set Xtrain = result."__getitem__"(0)
+    Set Ytrain = result."__getitem__"(1)
+    Set Xtest  = result."__getitem__"(2)
+    Set Ytest  = result."__getitem__"(3)
+    set model = AP.ModelTraining(Xtrain, Ytrain, {"fit_intercept": true})
+*/
+Method ModelTraining(Xtrain As %SYS.Python, Ytrain As %SYS.Python, params As %DynamicObject = "") As %SYS.Python [ Language = python ]
 {
-
+    import json
     import iris
-
     import pandas as pd
-
     from sklearn.linear_model import LinearRegression
 
     try:
+        if Xtrain is None or Ytrain is None:
+            iris._SYS.System.WriteToConsoleLog("Received None Xtrain or Ytrain for model training.", 0, 2)
+            raise ValueError("Input data is None")
 
-        if df is None:
+        # Parse Parameters
+        if params == "":
+            params = self.MODELPARAMS
+            iris._SYS.System.WriteToConsoleLog(f"No parameters provided. Using existing ..MODELPARAMS: {params}", 0, 0)
+        else:
+            self.MODELPARAMS = params
+            iris._SYS.System.WriteToConsoleLog(f"Received new parameters for model training: {params}", 0, 0)
 
-            iris._SYS.System.WriteToConsoleLog("Received None DataFrame for model training.", 0, 2)
-
-            raise ValueError("Input DataFrame is None")
-
-        X = df.drop('target', axis=1)  # Assuming 'target' is the label column
-
-        y = df['target']
-
-        model = LinearRegression()
-
-        model.fit(X, y)
-
+        params_dict = json.loads(params._ToJSON())
+        self.MODEL = LinearRegression(**params_dict)
+        
+        iris._SYS.System.WriteToConsoleLog("Training LinearRegression model with provided training data and parameters.", 0, 0)
+        self.MODEL.fit(Xtrain, Ytrain)
         iris._SYS.System.WriteToConsoleLog("Model training completed successfully.", 0, 0)
 
-        return model
+        return self.MODEL
 
     except Exception as e:
 
