@@ -189,13 +189,13 @@ Method ModelTraining(Xtrain As %SYS.Python, Ytrain As %SYS.Python, params As %Dy
             iris._SYS.System.WriteToConsoleLog(f"Received new parameters for model training: {params}", 0, 0)
 
         params_dict = json.loads(params._ToJSON())
-        self.MODEL = LinearRegression(**params_dict)
+        model = LinearRegression(**params_dict)
         
         iris._SYS.System.WriteToConsoleLog("Training LinearRegression model with provided training data and parameters.", 0, 0)
-        self.MODEL.fit(Xtrain, Ytrain)
+        model.fit(Xtrain, Ytrain)
         iris._SYS.System.WriteToConsoleLog("Model training completed successfully.", 0, 0)
 
-        return self.MODEL
+        return model
 
     except Exception as e:
 
@@ -203,6 +203,49 @@ Method ModelTraining(Xtrain As %SYS.Python, Ytrain As %SYS.Python, params As %Dy
 
         iris._SYS.System.WriteToConsoleLog(f"Model Training Error: {str(e)}", 0, 2)
 
+        return None
+}
+
+/*
+Evaluates the trained model using the test data and returns performance metrics (e.g., MSE, R2 Score).
+e.g:
+    set AP = ##class(MLpipeline.AutomatedPipeline).%New()
+    set df = AP.DataExtraction("2026-02-26 17:50:00")
+    set validDf = AP.DataValidation(df)
+    set result  = AP.DataPreparation(validDf)
+    Set Xtrain = result."__getitem__"(0)
+    Set Ytrain = result."__getitem__"(1)
+    Set Xtest  = result."__getitem__"(2)
+    Set Ytest  = result."__getitem__"(3)
+    set model = AP.ModelTraining(Xtrain, Ytrain, {"fit_intercept": true})
+    set evalResults = AP.ModelEvaluation(model, Xtest, Ytest)
+*/
+Method ModelEvaluation(model As %SYS.Python, Xtest As %SYS.Python, Ytest As %SYS.Python) As %SYS.Python [ Language = python ]
+{
+    import iris
+    import pandas as pd
+    from sklearn.metrics import mean_squared_error, r2_score
+    
+    try:
+        if model is None:
+            iris._SYS.System.WriteToConsoleLog("No trained model available for evaluation.", 0, 2)
+            raise ValueError("Model is None")
+        if Xtest is None or Ytest is None:
+            iris._SYS.System.WriteToConsoleLog("Received None Xtest or Ytest for model evaluation.", 0, 2)
+            raise ValueError("Input data is None")
+        iris._SYS.System.WriteToConsoleLog("Making predictions with the trained model on test data.", 0, 0)
+        predictions = model.predict(Xtest)
+        
+        mse = mean_squared_error(Ytest, predictions)
+        r2 = r2_score(Ytest, predictions)
+
+        iris._SYS.System.WriteToConsoleLog(f"Model Evaluation completed. MSE: {mse}, R2 Score: {r2}", 0, 0)
+
+        return {"MSE": mse, "R2_Score": r2}
+
+    except Exception as e:
+        print("Error during Model Evaluation:", e)
+        iris._SYS.System.WriteToConsoleLog(f"Model Evaluation Error: {str(e)}", 0, 2)
         return None
 }
 
