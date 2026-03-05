@@ -44,22 +44,26 @@ Method %OnNew(seed As %Integer = 42, testSize As %Numeric(SCALE=2) = 0.2, modelP
         set ..MODELPARAMS = modelParams
     }
 
+    set status = $$$OK
+    set runid = ""
+
     try {
         set mlflow = ##class(%SYS.Python).Import("mlflow")
+        do mlflow."set_tracking_uri"($System.Util.GetEnviron("MLFLOW_TRACKING_URI_IRIS"))
+        do mlflow."set_experiment"(..#EXPERIMENTNAME)
         do mlflow."end_run"() // Ensure no active run before starting a new one
         set run = mlflow."start_run"()
         set runid = run.info."run_id"
         do mlflow."end_run"()
         set ..MLFLOWRUNID = runid
-        do ##class(%SYS.System).WriteToConsoleLog("Created MLflow run  with ID=" _ runid, 0, 0)
-        set status = $$$OK
+        do ##class(%SYS.System).WriteToConsoleLog("Created MLflow run with ID="_runid, 0, 0)
     } catch ex {
         set status = ex.AsStatus()
-        do ##class(%SYS.System).WriteToConsoleLog("MLflow Error: " _ ex.DisplayString(), 0, 2)
+        do ##class(%SYS.System).WriteToConsoleLog("MLflow Error: "_ex.DisplayString(), 0, 2)
     }
-    set ..MLFLOWRUNID = runid
-    do ##class(%SYS.System).WriteToConsoleLog("Created instance of MLpipeline.AutomatedPipeline with SEED=" _ seed _ " and TESTSIZE=" _ testSize _ " and MODELPARAMS=" _ ..MODELPARAMS, 0, 0)
-    Quit $$$OK
+
+    do ##class(%SYS.System).WriteToConsoleLog("Created instance of MLpipeline.AutomatedPipeline with SEED="_seed_" TESTSIZE="_testSize_" MODELPARAMS="_..MODELPARAMS, 0, 0)
+    Quit status
 }
 
 /*
@@ -68,14 +72,17 @@ e.g:
     set AP = ##class(MLpipeline.AutomatedPipeline).%New()
     set df = AP.DataExtraction("2026-02-26 17:50:00")
 */
-Method DataExtraction(datetime As %String) As %SYS.Python [ Language = python ]
+Method DataExtraction(datetimestr As %String) As %SYS.Python [ Language = python ]
 {
     import iris
     import pandas as pd
+    import datetime as dt
     
     try:
         FS = iris.MLpipeline.FeatureStore._New()
-        os_rs = FS.DataExtraction("MLpipeline", "PointSamples", "*", f"datetime > '{datetime}'")
+        parsed_dt = dt.datetime.strptime(datetimestr, "%Y-%m-%d %H:%M:%S")
+        safe_literal = parsed_dt.strftime("%Y-%m-%d %H:%M:%S")
+        os_rs = FS.DataExtraction("MLpipeline", "PointSamples", "*", f"datetime > '{safe_literal}'")
         print("Data Extraction ResultSet:", os_rs)
         py_rs = iris.cls("%SYS.Python.SQLResultSet")._New(os_rs)
         df = py_rs.dataframe()
@@ -99,6 +106,7 @@ e.g:
 */
 Method DataValidation(df As %SYS.Python) As %SYS.Python [ Language = python ]
 {
+    # TODO: Check data shift (data schema skews and data values skews)
     import iris
     import pandas as pd
     
@@ -136,7 +144,6 @@ Method DataPreparation(df As %SYS.Python) As %SYS.Python [ Language = python ]
 {
     import iris
     import pandas as pd
-    from sklearn.preprocessing import StandardScaler
     from sklearn.model_selection import train_test_split
     
     try:
@@ -219,6 +226,9 @@ Method ModelTraining(Xtrain As %SYS.Python, Ytrain As %SYS.Python, params As %Dy
                 "train_mae": mean_absolute_error(Ytrain, y_pred_train),
                 "train_r2": r2_score(Ytrain, y_pred_train),
             })
+
+            # Store the trained model in the class property for later use in evaluation and validation
+            self.MODEL = model
             return model
 
     except Exception as e:
@@ -258,6 +268,9 @@ Method ModelEvaluation(model As %SYS.Python, Xtest As %SYS.Python, Ytest As %SYS
         if Xtest is None or Ytest is None:
             iris._SYS.System.WriteToConsoleLog("Received None Xtest or Ytest for model evaluation.", 0, 2)
             raise ValueError("Input data is None")
+
+        mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI_IRIS"))
+        mlflow.set_experiment(self._GetParameter("EXPERIMENTNAME"))
 
         with mlflow.start_run(run_id=self.MLFLOWRUNID):
 
