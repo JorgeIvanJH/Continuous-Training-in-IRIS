@@ -402,9 +402,9 @@ Method RunPipeline(datetimestr As %String) As %SYS.Python [ Language = python ]
 
         # Model Promoting process
         if bestrunid == self.MLFLOWRUNID:
-            input = input("New model outperforms the baseline. Do you want to promote it to production? (yes/no): ")
-            iris._SYS.System.WriteToConsoleLog(f"User input for model promotion: {input}", 0, 0)
-            if input.lower() == "yes":
+            input_promote = input("New model outperforms the baseline. Do you want to promote it to production? (yes/no): ")
+            iris._SYS.System.WriteToConsoleLog(f"User input_promote for model promotion: {input_promote}", 0, 0)
+            if input_promote.lower() == "yes":
                 iris._SYS.System.WriteToConsoleLog(f"New model to be promoted to production.", 0, 0)
                 print("TODO: PROMOTE MODEL TO PRODUCTION")
             else:
