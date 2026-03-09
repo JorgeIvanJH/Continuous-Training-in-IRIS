@@ -111,26 +111,54 @@ In this repo we include the required methods for querying from DB, and Parameter
 
 ## Automated Pipeline
 
-The automated pipeline represents a formalized implementation of the data processing and model training done during the experimentation. This is implemented on the class AutomatedPipeline and has a method for each of the steps involved. 
+The automated pipeline is the formal implementation of the data processing and model training performed during experimentation. This block consists of modular and clearly defined steps executed sequentially, implemented in the AutomatedPipeline class within the MLpipeline package — one method per step, all orchestrated by RunPipeline. These steps are described in detail below:
 
-For the simple problem in thsi repo, we only:
-0. Data extraction: takes resulting query from Feature store (query with object script for faster SQL data extraction with native IRIS language) and transforms to pandas dataframe for ML processing
-1. Data Validation: validate missing values
-2. Data preparation: normalize centered in mean and 1 standard deviation
+![alt text](images/Automated_Pipeline.png)
 
+1) Data Extraction:
+Leverages the FeatureStore to query the PointSamples table filtered by a datetime threshold using IRIS SQL, and converts the resulting %SYS.Python.SQLResultSet into a pandas DataFrame.
+ - In: datetime filter string
+ - Process: SQL query via FeatureStore
+ - Out: DataFrame
+
+2) Data Validation:
+Inspects the DataFrame for data quality issues and logs warnings to the IRIS console: missing values, missing essential columns (x, y), incorrect data types, and IQR-based outlier detection. The DataFrame is passed through unchanged.
+ - In: DataFrame
+ - Process: Missing values, column, type and outlier checks
+ - Out: DataFrame
+
+3) Data Preparation:
+Applies any non-learned transformations (renames, type casting — no .fit() calls), then splits the data into train and test sets using train_test_split with configurable TESTSIZE and SEED.
+ - In: DataFrame
+ - Process: Non-learned transforms + train/test split
+ - Out: Xtrain, Ytrain, Xtest, Ytest
+
+4) Model Training:
+Builds a sklearn Pipeline with StandardScaler and LinearRegression, trains it on the training split, and logs the run to MLflow via autolog. Saves model artifacts to MODELSPATH, logs train_mae and train_r2, and tags the run with TrainingStatus: OK.
+ - In: Xtrain, Ytrain, model params
+ - Process: sklearn Pipeline fit + MLflow logging
+ - Out: trained model
+
+5) Model Evaluation:
+Runs inference on the test split and logs val_mae and val_r2 to the same MLflow run. Tags the run with EvaluationStatus: OK and returns the metrics dictionary.
+ - In: trained model, Xtest, Ytest
+ - Process: inference + metric computation
+ - Out: metrics dict
+
+6) Model Validation:
+Queries MLflow for the most recent prior run tagged with both TrainingStatus: OK and EvaluationStatus: OK, re-evaluates that model on the current test set for a fair comparison, and returns the run_id of the best performing model based on MAE and R2.
+
+ - In: new model metrics, Xtest, Ytest
+ - Process: load previous model + re-evaluate on current test set
+ - Out: run_id of best model
+
+
+
+Automatic Pipeline Flow:
 
 
 
 Trigger: Manual (can be on new data, or on a schedule, or on model degradation, etc)
-
-Automatic Pipeline Flow:
-    Data Extraction (In: filter, Process: Query, Out: Dataframe)
-    Data Validation (In: Dataframe, Process: Check data skews, Out: Dataframe)
-    Data Preparation (In: Dataframe, Process: splitting, Out: train/test splits)
-    Model Training (In: train split, Process: model training, Out: model)
-    Model Evaluation (In: model & test split, Process: model evaluation, Out: metrics)
-    Model Validation (In: metrics & test split, Process: compare new and old model with current test split, Out: run_id of best model)
-
 
 
 docker exec -it iris-experimentation iris terminal iris
