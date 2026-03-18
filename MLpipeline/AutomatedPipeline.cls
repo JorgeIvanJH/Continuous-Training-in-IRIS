@@ -268,21 +268,65 @@ Method ModelEvaluation(model As %SYS.Python, Xtest As %SYS.Python, Ytest As %SYS
     import iris
     import pandas as pd
     import mlflow
-    from sklearn.metrics import mean_absolute_error, r2_score
-    
+    from mlflow.models import infer_signature
+    from mlflow.models import make_metric
+    from mlflow.metrics.base import MetricValue
+    import matplotlib.pyplot as plt
+
+
+    def cutom_metric(predictions, targets, metrics):
+        """placeholder for a custom evaluation metric to be logged later"""
+        custom_value = (predictions - targets).abs().mean() # Example: mean absolute error as a custom metric
+        return MetricValue(aggregate_results={"custom_mae": custom_value})
+
+    def custom_plot(eval_df, builtin_metrics, artifacts_dir):
+        """placeholder for a custom plotting function to be logged later"""
+        plt.figure(figsize=(6, 6))
+        plt.scatter(eval_df["target"], eval_df["prediction"], alpha=0.5)
+        plt.plot([eval_df["target"].min(), eval_df["target"].max()], [eval_df["target"].min(), eval_df["target"].max()], 'r--')
+        plt.xlabel("True Values")
+        plt.ylabel("Predictions")
+        plt.title("Custom Prediction vs True Values Plot")
+        plt.grid()
+        
+        # save plot to artifacts directory
+        plot_path = os.path.join(artifacts_dir, "custom_plot.png")
+        plt.savefig(plot_path)
+        plt.close()
+        return {"custom_plot": plot_path}
+
+
     try:
         mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI_IRIS"))
         mlflow.set_experiment(self._GetParameter("EXPERIMENTNAME"))
         mlflow.sklearn.autolog()
 
+        custom_metric = make_metric(eval_fn=cutom_metric, greater_is_better=False, name="custom_mae")
+
+        eval_data = Xtest.copy()
+        eval_data["target"] = Ytest
+
         # Test logging with MLflow on the same run as training
         with mlflow.start_run(run_id=self.MLFLOWRUNID):
-
-            y_pred_test = model.predict(Xtest)
-            mae = mean_absolute_error(Ytest, y_pred_test)
-            r2 = r2_score(Ytest, y_pred_test)
+            signature = infer_signature(Xtest, model.predict(Xtest))
+            model_info = mlflow.sklearn.log_model(model, name="model", signature=signature)
+            result = mlflow.models.evaluate(
+                model_info.model_uri,
+                eval_data,
+                targets="target",
+                model_type="regressor",
+                extra_metrics=[custom_metric],
+                custom_artifacts=[custom_plot],
+                evaluator_config={
+                "log_explainer": True, # log SHAP explainer
+                "explainer_type": "fast",
+                "max_error_examples": 100,
+                "log_model_explanations": True,
+                }
+            )
+            mae = result.metrics["mean_absolute_error"]
+            r2 = result.metrics["r2_score"]
             metrics = {"val_mae": mae, "val_r2": r2}
-            mlflow.log_metrics(metrics)
 
             # Tag successful evaluation for future identification of runs
             mlflow.set_tag("EvaluationStatus", "OK")
