@@ -83,17 +83,17 @@ Method DataExtraction(datetimestr As %String) As %SYS.Python [ Language = python
     import iris
     import pandas as pd
     import datetime as dt
+    from python_utils.utils import IRIS_DBQuery
     
     try:
-        FS = iris.MLpipeline.FeatureStore._New()
         parsed_dt = dt.datetime.strptime(datetimestr, "%Y-%m-%d %H:%M:%S")
         safe_literal = parsed_dt.strftime("%Y-%m-%d %H:%M:%S")
-        os_rs = FS.DataExtraction("MLpipeline", "PointSamples", "*", f"datetime > '{safe_literal}'")
-        py_rs = iris.cls("%SYS.Python.SQLResultSet")._New(os_rs)
-        df = py_rs.dataframe()
-        shape = df.shape
-        if shape == (0, 0): # Warning for empty result
-            iris._SYS.System.WriteToConsoleLog("Query returned an empty DataFrame.", 0, 1)
+        df = IRIS_DBQuery(
+            schema="MLpipeline", 
+            tablename="PointSamples", 
+            columns="*", 
+            filters=f"datetime > '{safe_literal}'"
+        )
         iris._SYS.System.WriteToConsoleLog(f"DataExtraction completed.", 0, 0)
         return df
     except Exception as e:

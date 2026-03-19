@@ -1,8 +1,6 @@
 Class MLpipeline.ModelServing Extends %RegisteredObject
 {
 
-// TODO: MEthod to download model from mlflow if doesnt exist in path
-
 /*
 Updates the global containing the training model's path to be used by the PredictionService component for inference. 
 e.g:
