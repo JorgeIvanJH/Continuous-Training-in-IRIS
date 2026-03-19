@@ -118,15 +118,14 @@ def safe_model_load(model_path: str):
         else:
             return None
 
-def IRIS_DBQuery(schema: str, tablename: str, columns: str = "*", filters: str = "", params: list = None) -> pd.DataFrame:    
+def IRIS_DBQuery(schema: str, tablename: str, columns: str = "*", filters: str = "") -> pd.DataFrame:    
     """
     Executes a database query against an IRIS database and returns the results as a pandas DataFrame.
     Args:
         schema (str): The database schema to query.
         tablename (str): The table name to query.
         columns (str): The columns to select (default is "*").
-        filters (str): Optional SQL filters to apply to the query. Ignoring WHERE clause (e.g. datetime > ?). 
-        params (list): A list of parameters to bind to the query. (e.g. ['2023-01-01'])
+        filters (str): Optional SQL filters to apply to the query. Ignoring WHERE clause (e.g. datetime > '2023-01-01'). 
     Returns:
         pd.DataFrame: The query results as a pandas DataFrame.
     """

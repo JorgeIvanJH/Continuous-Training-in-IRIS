@@ -46,10 +46,9 @@ Write "Loading CSV data to IRIS...",!
 SET exists = ##class(%SYSTEM.SQL.Schema).TableExists("MLpipeline.PointSamples")
 IF 'exists { do ##class(MLpipeline.FeatureStore).%New().UploadCSVtoIRIS("/dur/data/point_samples.csv","USER", "MLpipeline","PointSamples") }
 
-
-
-
-
+Write "Creating Additional tables for MLpipeline...",!
+Set exists = ##class(%SYSTEM.SQL.Schema).TableExists("MLpipeline.Predictions")
+IF 'exists { do ##class(MLpipeline.FeatureStore).%New().CreatePredictionsTable("USER", "MLpipeline", "Predictions") }
 
 
 Write "IRIS CONFIGURATION COMPLETED.",!

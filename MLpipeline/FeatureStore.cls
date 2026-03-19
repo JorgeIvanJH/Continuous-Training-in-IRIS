@@ -98,4 +98,52 @@ Method DataExtraction(schema As %String, tablename As %String, columns As %Strin
     return rs
 }
 
+/*
+Creates a Predictions table in IRIS to store inference results, with a foreign key relationship to the PointSamples table.
+e.g:
+    set FS = ##class(MLpipeline.FeatureStore).%New()
+    set status = FS.CreatePredictionsTable("USER", "MLpipeline", "Predictions")
+*/
+Method CreatePredictionsTable(namespace As %String = "USER", package As %String = "MLpipeline", tablename As %String = "Predictions") As %Status [ Language = python ]
+{
+    from sqlalchemy import create_engine, text
+    import iris
+
+    try:
+        engine = create_engine(f"iris+emb:///{namespace}")
+        
+        create_table_sql = f"""
+        CREATE TABLE {package}.{tablename} (
+            ID INTEGER PRIMARY KEY IDENTITY(1,1),
+            PointsIDForeignKey INTEGER,
+            YPred DOUBLE,
+            Modelrunid VARCHAR(100),
+            MAE DOUBLE,
+            InferenceTime DOUBLE,
+            datetime DATETIME DEFAULT CURRENT_TIMESTAMP,
+            CONSTRAINT fk_PointSamples FOREIGN KEY (PointsIDForeignKey) 
+            REFERENCES {package}.PointSamples(ID)
+        )
+        """
+
+        with engine.connect() as conn:
+            # Check if table already exists to avoid errors
+            check_sql = text(f"SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = :sch AND TABLE_NAME = :tbl")
+            result = conn.execute(check_sql, {"sch": package, "tbl": tablename}).fetchone()
+            
+            if not result:
+                conn.execute(text(create_table_sql))
+                conn.commit()
+                print(f"Table {package}.{tablename} created successfully.")
+            else:
+                print(f"Table {package}.{tablename} already exists.")
+        
+        return True
+
+    except Exception as e:
+        print(f"Error creating {package}.{tablename} table: {e}")
+        iris._SYS.System.WriteToConsoleLog(f"Error creating {package}.{tablename} table: {e}", 0, 2)
+        return False
+}
+
 }
