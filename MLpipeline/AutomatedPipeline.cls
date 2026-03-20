@@ -1,9 +1,9 @@
 Class MLpipeline.AutomatedPipeline Extends %RegisteredObject
 {
 
-// Experiment Name for tracking purposes in MLflow or similar platforms (CONSTANT)
+// Experiment Name for tracking in MLflow
 
-Parameter EXPERIMENTNAME = "PRODUCTION_CT_Pipeline";
+Parameter EXPERIMENTNAME = "AutomatedPipeline";
 
 // Storage location for the trained models 
 

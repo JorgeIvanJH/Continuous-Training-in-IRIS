@@ -50,6 +50,17 @@ Write "Creating Additional tables for MLpipeline...",!
 Set exists = ##class(%SYSTEM.SQL.Schema).TableExists("MLpipeline.Predictions")
 IF 'exists { do ##class(MLpipeline.FeatureStore).%New().CreatePredictionsTable("USER", "MLpipeline", "Predictions") }
 
+Write "Running First ML Pipeline execution...",!
+set AP = ##class(MLpipeline.AutomatedPipeline).%New()
+set summary = AP.RunPipeline("2026-02-26 17:50:00")
+
+Write "Running First Prediction Service execution...",!
+set predictionsjson = ##class(MLpipeline.PredictionService).Predict("datetime > '2026-02-26 17:50:00'")
+
+Write "Running First Performance Monitoring execution...",!
+set PM = ##class(MLpipeline.PerformanceMonitoring).%New()
+set status = PM.MetricsMonitoring("2026-02-26 17:50:00")
+
 
 Write "IRIS CONFIGURATION COMPLETED.",!
 halt
