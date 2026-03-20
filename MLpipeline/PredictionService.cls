@@ -97,9 +97,10 @@ Predicts over the data specified by the filters using the current model in produ
 e.g:
     set predictionsjson = ##class(MLpipeline.PredictionService).Predict("datetime > '2026-02-26 17:50:00'")
 */
-ClassMethod Predict(filters As %String = "") As %SYS.Python [ Language = python ]
+ClassMethod Predict(filters As %String = "") As %String [ Language = python ]
 {
     import iris
+    import json
     from python_utils.utils import measure_time_decorator
 
 
@@ -111,13 +112,12 @@ ClassMethod Predict(filters As %String = "") As %SYS.Python [ Language = python 
         y_preds, pred_time = decorated_predict(indf[["x"]])
         iris.MLpipeline.PredictionService.SavePredictions(model, indf, y_preds, pred_time)
         iris._SYS.System.WriteToConsoleLog(f"Prediction completed in {pred_time:.4f} seconds for {len(indf)} records.", 0, 0)
-        return y_preds
-
+        return json.dumps(y_preds.tolist() if hasattr(y_preds, 'tolist') else list(y_preds))
     except Exception as e:
         err_msg = f"Predict Error: {str(e)}"
         print(f"Predict Error: {err_msg}")
         iris._SYS.System.WriteToConsoleLog(f"Predict Error: {err_msg}", 0, 2)
-        return [None]
+        return json.dumps([None])
 }
 
 }

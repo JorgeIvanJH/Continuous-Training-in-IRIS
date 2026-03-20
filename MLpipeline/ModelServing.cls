@@ -36,7 +36,7 @@ ClassMethod PromotingLogic(newrunid As %String, bestrunid As %String) As %SYS.Py
         if active_path:
             # A model already exists. Compare performance.
             if bestrunid == newrunid:
-                input_promote = input("New model outperforms the baseline. Promote? (yes/no): ")
+                input_promote = "yes" # input("New model outperforms the baseline. Promote? (yes/no): ") # TODO: Implement user input for promotion decision
                 if input_promote.lower() == "yes":
                     iris._SYS.System.WriteToConsoleLog("Promotion approved. Deploying new model.", 0, 0)
                     iris.MLpipeline.ModelServing.DeployModel(candidate_model_path)

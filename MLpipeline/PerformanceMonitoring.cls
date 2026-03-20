@@ -5,6 +5,10 @@ Class MLpipeline.PerformanceMonitoring Extends %RegisteredObject
 
 Parameter EXPERIMENTNAME = "PerformanceMonitoring";
 
+// Minimum R2 score threshold for model performance to trigger retraining
+
+Parameter R2THRESHOLD = 0.2;
+
 // Current Date and Time for logging purposes
 
 Property CURRENTDATETIME As %String;
@@ -69,8 +73,6 @@ Method FetchTables(fromdatetime As %String) As %SYS.Python [ Language = python ]
             columns="id, pointsidforeignkey, ypred, modelrunid, inferencetime, datetime",
             filters=f"pointsidforeignkey IN {tuple(points_w_groundtruth)}"
         )
-        print(Predictions_df.head())
-        print(PointSamples_df.head())
         return PointSamples_df, Predictions_df
     except Exception as e:
         print(f"FetchTables Error: {str(e)}")
@@ -94,6 +96,8 @@ Method MetricsMonitoring(fromdatetime As %String) As %Status [ Language = python
     from python_utils.utils import IRIS_DBQuery
     import matplotlib.pyplot as plt
     import seaborn as sns
+
+    minr2threshold = float(iris.cls(__name__)._GetParameter("R2THRESHOLD"))
 
 
     def custom_plot(PointSamples_df, Predictions_df):
@@ -130,10 +134,21 @@ Method MetricsMonitoring(fromdatetime As %String) As %Status [ Language = python
             mlflow.log_metric("MAE", mae)
             mlflow.log_metric("R2", r2)
 
+            mlflow.set_tag("model_id", latest_model)
+            ## TODO ALSO SET TAG FOR RUN NAME
+
             fig = custom_plot(PointSamples_df, Predictions_df)
             mlflow.log_figure(fig, "plots/performance_monitoring.png")
             plt.close(fig)
 
+        print("minr2threshold:", minr2threshold)
+        if r2 < minr2threshold:
+            print(f"Performance degradation detected! R2 score {r2} is below the threshold of {minr2threshold}. RETRAINING...")
+            AP = iris.MLpipeline.AutomatedPipeline._New()
+            summary = AP.RunPipeline(fromdatetime)
+            print("Retraining pipeline triggered. Summary:", summary)
+        else:
+            print(f"Model performance is stable. R2 score: {r2} is above the threshold of {minr2threshold}.")
         return True
 
     except Exception as e:
