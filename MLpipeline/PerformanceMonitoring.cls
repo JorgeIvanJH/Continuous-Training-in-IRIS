@@ -81,6 +81,26 @@ Method FetchTables(fromdatetime As %String) As %SYS.Python [ Language = python ]
 }
 
 /*
+Triggers the retraining pipeline if performance degradation is detected based on the R2 score.
+e.g:
+    set PM = ##class(MLpipeline.PerformanceMonitoring).%New()
+    set status = PM.Trigger(0.15)
+*/
+Method Trigger(r2 as %Numeric) As %Status [ Language = python ]
+{
+    import iris
+    minr2threshold = float(iris.cls(__name__)._GetParameter("R2THRESHOLD"))
+
+    if r2 < minr2threshold:
+        iris._SYS.System.WriteToConsoleLog(f"[PERFORMANCE MONITORING] Performance degradation detected! R2 score {r2} is below the threshold of {minr2threshold}. RETRAINING...", 0, 0)
+        AP = iris.MLpipeline.AutomatedPipeline._New()
+        summary = AP.RunPipeline(fromdatetime)
+        iris._SYS.System.WriteToConsoleLog(f"[PERFORMANCE MONITORING] Retraining pipeline triggered. Summary: {summary}", 0, 0)
+    else:
+        iris._SYS.System.WriteToConsoleLog(f"[PERFORMANCE MONITORING] Model performance is stable. R2 score: {r2} is above the threshold of {minr2threshold}.", 0, 0)
+}
+
+/*
 Makes model evaluation and logs metrics and custom plots to MLflow.
 e.g:
     set PM = ##class(MLpipeline.PerformanceMonitoring).%New()
@@ -97,7 +117,6 @@ Method MetricsMonitoring(fromdatetime As %String) As %Status [ Language = python
     import matplotlib.pyplot as plt
     import seaborn as sns
 
-    minr2threshold = float(iris.cls(__name__)._GetParameter("R2THRESHOLD"))
 
 
     def custom_plot(PointSamples_df, Predictions_df):
@@ -141,14 +160,8 @@ Method MetricsMonitoring(fromdatetime As %String) As %Status [ Language = python
             mlflow.log_figure(fig, "plots/performance_monitoring.png")
             plt.close(fig)
 
-        print("minr2threshold:", minr2threshold)
-        if r2 < minr2threshold:
-            print(f"Performance degradation detected! R2 score {r2} is below the threshold of {minr2threshold}. RETRAINING...")
-            AP = iris.MLpipeline.AutomatedPipeline._New()
-            summary = AP.RunPipeline(fromdatetime)
-            print("Retraining pipeline triggered. Summary:", summary)
-        else:
-            print(f"Model performance is stable. R2 score: {r2} is above the threshold of {minr2threshold}.")
+        self.Trigger(r2) # Trigger retraining if performance degradation is detected
+
         return True
 
     except Exception as e:

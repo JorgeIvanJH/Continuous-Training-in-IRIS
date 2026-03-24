@@ -343,7 +343,7 @@ Method ModelEvaluation(model As %SYS.Python, Xtest As %SYS.Python, Ytest As %SYS
 
 /*
 Validation before promoting model to production. 
-Compares performance to a baseline metric or previous model. 
+Compares performance to the current production model, and logs the results.
 Returns the best model's run ID for promotion.
 e.g:
     set AP = ##class(MLpipeline.AutomatedPipeline).%New()
@@ -364,6 +364,7 @@ Method ModelValidation(newmodelmetrics As %SYS.Python, result As %SYS.Python, pl
     import iris
     import mlflow
     import pandas as pd
+    from pathlib import Path
     from sklearn.metrics import mean_absolute_error, r2_score
     from python_utils.utils import plot_inference, safe_model_load
 
@@ -371,43 +372,38 @@ Method ModelValidation(newmodelmetrics As %SYS.Python, result As %SYS.Python, pl
 
         Xtrain, Ytrain, Xtest, Ytest = result
 
-        # Fetch valid previous runs in MLflow
-        exp = mlflow.get_experiment_by_name(self._GetParameter("EXPERIMENTNAME"))
-        runs = mlflow.search_runs(
-            experiment_ids=[exp.experiment_id],
-            filter_string="tags.TrainingStatus = 'OK' and tags.EvaluationStatus = 'OK' ",
-            order_by=["attributes.end_time DESC"],
-            max_results=5
-        )
-        # Get most recent previous run that is not the current run
-        previous_runs = runs[runs["run_id"] != self.MLFLOWRUNID]
-        if not previous_runs.empty:
-            last_run = previous_runs.iloc[0]
-            last_run_id = last_run["run_id"]
-            last_run_name = last_run.get("tags.mlflow.runName")
-            last_model_path = os.path.join(self._GetParameter("MODELSPATH"), last_run_id)
-            last_model = safe_model_load(last_model_path)
-            iris._SYS.System.WriteToConsoleLog(f"Last successful run found and loaded. Model Name: {last_run_name} Run ID: {last_run_id} Model Path: {last_model_path}", 0, 0)
-            # Evaluate the last model on the current test set for comparison
-            new_y_pred = last_model.predict(Xtest)
-            mae = mean_absolute_error(Ytest, new_y_pred)
-            r2 = r2_score(Ytest, new_y_pred)
+        # Get newly trained model's run information
+        newmodel_run = mlflow.get_run(self.MLFLOWRUNID)
+
+        # Get model currently in production and its run information
+        gref = iris.gref("^ML.Config")
+        prod_model_path = Path(gref["ModelPath"]) if gref["ModelPath"] else None
+
+        if prod_model_path:
+            prod_run_id = prod_model_path.name # file name of each saved model is the run id
+            prodmodel_run = mlflow.get_run(prod_run_id)
+            prod_model = safe_model_load(prod_model_path)
+            iris._SYS.System.WriteToConsoleLog(f"Current model in production found and loaded. Model Path: {prod_model_path}. Run Name: {prodmodel_run.get('tags.mlflow.runName')}", 0, 0)
+            # Evaluate the model currently in production on the new test set for comparison
+            prod_y_pred = prod_model.predict(Xtest)
+            mae = mean_absolute_error(Ytest, prod_y_pred)
+            r2 = r2_score(Ytest, prod_y_pred)
             oldmodelmetrics = {"val_mae": mae, "val_r2": r2}
-            iris._SYS.System.WriteToConsoleLog(f"Old Model Evaluation - MAE: {mae}, R2 Score: {r2}", 0, 0)
+            iris._SYS.System.WriteToConsoleLog(f"Old Model Evaluation - MAE: {oldmodelmetrics['val_mae']}, R2 Score: {oldmodelmetrics['val_r2']}", 0, 0)
             iris._SYS.System.WriteToConsoleLog(f"New Model Evaluation - MAE: {newmodelmetrics['val_mae']}, R2 Score: {newmodelmetrics['val_r2']}", 0, 0)
             # Metrics comparison logic
             if newmodelmetrics["val_mae"] < oldmodelmetrics["val_mae"] and newmodelmetrics["val_r2"] > oldmodelmetrics["val_r2"]:
-                iris._SYS.System.WriteToConsoleLog("New model outperforms the baseline.", 0, 0)
+                iris._SYS.System.WriteToConsoleLog("New model outperforms the model in production.", 0, 0)
                 best_run_id = self.MLFLOWRUNID
             else:
-                iris._SYS.System.WriteToConsoleLog("New model does not outperform the baseline, old model is kept.", 0, 0)
-                best_run_id = last_run_id
+                iris._SYS.System.WriteToConsoleLog("New model does not outperform the model in production, model in production is kept.", 0, 0)
+                best_run_id = prod_run_id
             if plotComparison:
                 current_run = runs[runs["run_id"] == self.MLFLOWRUNID].iloc[0]
-                plot_inference(self, Xtrain, Ytrain, Xtest, Ytest, last_run, current_run)
+                plot_inference(self, Xtrain, Ytrain, Xtest, Ytest, prodmodel_run, newmodel_run)
         else:
             print("No previous successful run found.")
-            iris._SYS.System.WriteToConsoleLog("No previous successful run found for ModelValidation, best model is current model.", 0, 0)
+            iris._SYS.System.WriteToConsoleLog("No model found in production, best model is the newly trained one.", 0, 0)
             best_run_id = self.MLFLOWRUNID
         
         return best_run_id
@@ -445,7 +441,7 @@ Method RunPipeline(datetimestr As %String) As %SYS.Python [ Language = python ]
         iris._SYS.System.WriteToConsoleLog("Starting DataPreparation.", 0, 0)
         preparation_result = self.DataPreparation(valid_df)
         Xtrain, Ytrain, Xtest, Ytest = preparation_result
-
+        # TODO: how to do k-fold cross validation here? 
         # Step 4: Model Training
         iris._SYS.System.WriteToConsoleLog("Starting ModelTraining.", 0, 0)
         model = self.ModelTraining(Xtrain, Ytrain, self.MODELPARAMS)
