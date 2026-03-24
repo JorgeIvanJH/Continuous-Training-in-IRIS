@@ -396,7 +396,7 @@ Method ModelValidation(newmodelmetrics As %SYS.Python, result As %SYS.Python, pl
             iris._SYS.System.WriteToConsoleLog(f"Old Model Evaluation - MAE: {mae}, R2 Score: {r2}", 0, 0)
             iris._SYS.System.WriteToConsoleLog(f"New Model Evaluation - MAE: {newmodelmetrics['val_mae']}, R2 Score: {newmodelmetrics['val_r2']}", 0, 0)
             # Metrics comparison logic
-            if newmodelmetrics["val_mae"] < mae and newmodelmetrics["val_r2"] > r2:
+            if newmodelmetrics["val_mae"] < oldmodelmetrics["val_mae"] and newmodelmetrics["val_r2"] > oldmodelmetrics["val_r2"]:
                 iris._SYS.System.WriteToConsoleLog("New model outperforms the baseline.", 0, 0)
                 best_run_id = self.MLFLOWRUNID
             else:
