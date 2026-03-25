@@ -86,7 +86,7 @@ e.g:
     set PM = ##class(MLpipeline.PerformanceMonitoring).%New()
     set status = PM.Trigger(0.15, "2026-02-26 17:50:00")
 */
-Method Trigger(r2 as %Numeric, fromdatetime As %String) As %Status [ Language = python ]
+Method Trigger(r2 As %Numeric, fromdatetime As %String) As %Status [ Language = python ]
 {
     import iris
     minr2threshold = float(iris.cls(__name__)._GetParameter("R2THRESHOLD"))
@@ -154,8 +154,9 @@ Method MetricsMonitoring(fromdatetime As %String) As %Status [ Language = python
             mlflow.log_metric("MAE", mae)
             mlflow.log_metric("R2", r2)
 
+            modelrun = mlflow.get_run(latest_model)
             mlflow.set_tag("model_id", latest_model)
-            ## TODO ALSO SET TAG FOR RUN NAME
+            mlflow.set_tag("run_name", modelrun.data.tags.get('mlflow.runName'))
 
             fig = custom_plot(PointSamples_df, Predictions_df)
             mlflow.log_figure(fig, "plots/performance_monitoring.png")

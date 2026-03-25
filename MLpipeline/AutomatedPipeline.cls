@@ -222,8 +222,8 @@ Method ModelTraining(Xtrain As %SYS.Python, Ytrain As %SYS.Python, params As %Dy
             model.fit(Xtrain, Ytrain)
 
             # Saving Model
-            model_path = os.path.join(self._GetParameter("MODELSPATH"), self.MLFLOWRUNID) # TODO: set in the initialization
-            mlflow.sklearn.save_model(model, model_path) # TODO: Write a function to download and save here from the server to local based from the run id
+            model_path = os.path.join(self._GetParameter("MODELSPATH"), self.MLFLOWRUNID)
+            mlflow.sklearn.save_model(model, model_path)
 
             
             iris._SYS.System.WriteToConsoleLog("Model training completed successfully.", 0, 0)
@@ -442,7 +442,7 @@ Method RunPipeline(datetimestr As %String) As %SYS.Python [ Language = python ]
         iris._SYS.System.WriteToConsoleLog("Starting DataPreparation.", 0, 0)
         preparation_result = self.DataPreparation(valid_df)
         Xtrain, Ytrain, Xtest, Ytest = preparation_result
-        # TODO: how to do k-fold cross validation here? 
+
         # Step 4: Model Training
         iris._SYS.System.WriteToConsoleLog("Starting ModelTraining.", 0, 0)
         model = self.ModelTraining(Xtrain, Ytrain, self.MODELPARAMS)

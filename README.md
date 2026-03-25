@@ -1,6 +1,6 @@
-# Continuous Training (CT) pipeline in IRIS and MLflow
+# Continuous Training (CT) pipeline in IRIS and MLflow (with SHAP explainability)
 
-This is an integration of IRIS and the Open Source AI engineering platform MLflow, acting as complementary tools for a Continuous Training (CT) pipeline. For context, a CT pipeline is the formalization of a Machine Learning (ML) model developed through data science experimentation on the data available at the time, so it is ready for deployment, autonomous updating with new data, and appropriate performance monitoring.
+This is an integration of IRIS and the Open Source AI engineering platform MLflow, acting as complementary tools for a Continuous Training (CT) pipeline. For context, a CT pipeline is the formalization of a Machine Learning (ML) model developed through data science experimentation on the data available at the time, so it is ready for deployment, autonomous updating with new data, and appropriate performance monitoring. The implementation in this repo leverages MLflow's builtin configuration to store [SHAP](https://shap.readthedocs.io/en/latest/) explainers to provide explanations behind the predictions made by the corresponding model made at the time, including "black-box" complex ones such as Random Forest, XGBoost, Neural Networks, etc.
 
 This is a formal implementation of the CT pipeline for a toy example: you manually draw some points, and a linear regression is fit to predict new points (for "x", the model predicts "y"). This allows testing automatic execution of model degradation and retraining when you decide to change how you draw these points (slope, offset, dispersion, etc).
 
@@ -33,6 +33,18 @@ with credentials:
 See all the logging exclusive to the pipeline in dur/log/MLpipelineLogs.log
 
 TODO: video showing how to execute.
+
+## Unit Tests
+
+This project now includes isolated unit tests for `python_utils/utils.py` in `tests/unit/test_utils_unit.py`.
+These tests mock IRIS and MLflow interactions so they can run without a live IRIS instance.
+
+Install dependencies and run the unit test suite:
+
+```bash
+pip install -r requirements.txt
+pytest tests/unit -q
+```
 
 ## CT Pipeline Components
 
@@ -194,9 +206,9 @@ Contains all the trainable steps to be fitted in order to train using only the t
  - Out: trained model
 
 5) ```Method ModelEvaluation(model As %SYS.Python, Xtest As %SYS.Python, Ytest As %SYS.Python)```:
-Runs inference on the test split and logs the metrics achieved on the validation dataset over the same MLflow run. This method also has included methods to compute and store in MLflow custom metrics and plots. The metrics with the validation split are returned in the form of a dictionary. 
+Runs inference on the test split and logs the metrics achieved on the validation dataset over the same MLflow run. This method also has included methods to compute and store in MLflow custom metrics and plots, along with a SHAP explainer and plots for future reference and auditing. The metrics with the validation split are returned in the form of a dictionary. 
  - In: trained model, Xtest, Ytest
- - Process: inference on test splits + MLflow logging
+ - Process: inference on test splits + MLflow logging + SHAP explainer
  - Out: metrics dict
 
 6) ```Method ModelValidation(newmodelmetrics As %SYS.Python, result As %SYS.Python, plotComparison As %Boolean = 1)```:
@@ -225,3 +237,16 @@ Implemented in [MLpipeline/PredictionService.cls](MLpipeline/PredictionService.c
 
 Implemented in [MLpipeline/PerformanceMonitoring.cls](MLpipeline/PerformanceMonitoring.cls), there we query both the source data tables and the predictions tables, filter the source rows that have ground truth, and use that along with the predictions made by the model to compute performance metrics that we log directly to a separate experiment exclusively for live monitoring in MLflow. The ```Trigger(r2 as %Numeric)``` method is what directly executes the automated pipeline when model performance falls below a predefined threshold.
 
+## Unit Testing
+
+Run the [Unit Testing](UnitTesting/unit/test_utils_unit.py) from the root directory using: 
+```bash
+pytest UnitTesting/unit -q
+```
+Please note for this that these tests were AI generated using GitHub's Copilot. The author of this repo does not take credit for this part of the project.
+
+## Future Work
+
+- Implement K-Fold cross-validation for more accurate and reliable performance metrics
+- Right now, the model is only automatically updated through retraining with new data, but the hyperparameters are kept static. By following the instructions in [this guide](https://mlflow.org/docs/latest/ml/getting-started/hyperparameter-tuning/) this pipeline could be improved by introducing hyperparameter flexibility and allowing the model to be re-optimized using the open-source hyperparameter optimization framework (Optuna)[https://optuna.org/]
+- In this project, when prediction performance falls below a predefined threshold, the model is retrained and automatically updated. However, in some cases, human approval should be required before making changes in production, which is something that should be considered

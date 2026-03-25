@@ -10,3 +10,16 @@ __pycache__/
 *.log
 dur/models/*
 dur/log/*
+
+# Python test/cache artifacts
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Notebook artifacts
+.ipynb_checkpoints/
+
+.venv/
+venv/
+env/
